@@ -18,7 +18,7 @@ body {
   height: 100vh;
 }
 
-/* CHAT CONTAINER */
+/* CHAT WINDOW */
 #mun-window {
   width: 420px;
   height: 85vh;
@@ -188,14 +188,27 @@ function general(q) {
   return null;
 }
 
-/* INTENT */
+/* INTENT (FIXED + EXPANDED CATERING) */
 function intent(q) {
   q = q.toLowerCase();
+
   if (q.includes("agenda")) return "agenda";
   if (q.includes("portfolio")) return "portfolio";
   if (q.includes("date")) return "date";
-  if (q.includes("bg")) return "bg";
-  if (q.includes("catering")) return "catering";
+  if (q.includes("bg") || q.includes("guide")) return "bg";
+
+  if (
+    q.includes("catering") ||
+    q.includes("food") ||
+    q.includes("meal") ||
+    q.includes("lunch") ||
+    q.includes("snack") ||
+    q.includes("refreshment") ||
+    q.includes("eat") ||
+    q.includes("veg") ||
+    q.includes("non veg")
+  ) return "catering";
+
   return null;
 }
 
@@ -247,28 +260,30 @@ async function bg() {
   };
 }
 
-/* CATERING LOGIC */
+/* CATERING */
 function cateringAnswer(q) {
   q = q.toLowerCase();
 
-  if (q.includes("veg")) return "Vegetarian meals will be available across all days of the conference.";
-  if (q.includes("non veg") || q.includes("non-veg")) return "Non-vegetarian meals will be served where applicable.";
-  if (q.includes("lunch")) return "Lunch will be provided as per the schedule shared in the delegate kit.";
-  if (q.includes("snack")) return "Tea/coffee and snacks will be available during breaks.";
-  if (q.includes("timing")) return "Catering follows the conference schedule; exact timings will be announced in the schedule.";
-  if (q.includes("cost") || q.includes("fee")) return "Catering is included in the delegate fee unless otherwise specified.";
-  
-  return "Catering includes meals and refreshments during the conference. Please specify veg/non-veg, timing, or details.";
+  if (q.includes("veg")) return "Vegetarian meals will be available.";
+  if (q.includes("non veg") || q.includes("non-veg")) return "Non-vegetarian meals will be available.";
+  if (q.includes("lunch")) return "Lunch will be provided as per schedule.";
+  if (q.includes("snack")) return "Snacks and refreshments will be available during breaks.";
+  if (q.includes("timing")) return "Catering follows the conference schedule.";
+  if (q.includes("cost")) return "Catering is included unless stated otherwise.";
+
+  return "Catering includes meals and refreshments. Ask about veg, non-veg, lunch, or snacks.";
 }
 
+/* ELIGIBILITY */
 function eligibility(q) {
   q = q.toLowerCase();
 
-  if (q.includes("delegate") && q.match(/9|10/)) return "Eligible as Delegate.";
+  if (q.includes("delegate") && q.match(/9|10/))
+    return "Eligible as Delegate.";
 
   if (q.includes("delegation")) {
     const n = parseInt(q.match(/\d+/));
-    if (!n) return "Specify size.";
+    if (!n) return "Specify delegation size.";
     return n >= 15 ? "Eligible." : "Minimum 15 required.";
   }
 
@@ -276,8 +291,6 @@ function eligibility(q) {
 }
 
 /* MAIN */
-let fail = 0;
-
 async function handleQuery(q) {
 
   const g = general(q);
@@ -305,7 +318,7 @@ async function handleQuery(q) {
 
   if (i === "catering") return cateringAnswer(q);
 
-  return eligibility(q);
+  return "Sorry, didn't get you.";
 }
 
 /* UI */
