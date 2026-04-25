@@ -96,7 +96,7 @@ body {
   cursor: pointer;
 }
 
-/* QUICK BUTTONS */
+/* QUICK */
 #mun-quick {
   padding: 6px;
   border-top: 1px solid #374151;
@@ -160,6 +160,8 @@ const CONTACT = "Please contact the Chargé d’Affaires, Saanvi Kumar at 960691
 const cache = {};
 const CACHE_TIME = 300000;
 
+let failCount = 0;
+
 async function getSheet(name) {
   try {
     const now = Date.now();
@@ -176,6 +178,19 @@ async function getSheet(name) {
   }
 }
 
+/* PROGRAMMED FAQ RESPONSES */
+function programmed(q) {
+  q = q.toLowerCase();
+
+  if (q.includes("when is the mun")) return "The MUN will be conducted on the dates mentioned in the official schedule page of the website.";
+  if (q.includes("mun date")) return "Please refer to the Dates section for the official MUN schedule.";
+  if (q.includes("timing") && q.includes("mun")) return "The MUN timings will be shared in the delegate information booklet and schedule page.";
+  if (q.includes("venue")) return "The venue details are available in the event information section of the website.";
+  if (q.includes("registration")) return "Registration details are available on the registration page of the website.";
+
+  return null;
+}
+
 /* GENERAL */
 function general(q) {
   q = q.toLowerCase();
@@ -188,7 +203,7 @@ function general(q) {
   return null;
 }
 
-/* INTENT (FIXED + EXPANDED CATERING) */
+/* INTENT */
 function intent(q) {
   q = q.toLowerCase();
 
@@ -203,16 +218,13 @@ function intent(q) {
     q.includes("meal") ||
     q.includes("lunch") ||
     q.includes("snack") ||
-    q.includes("refreshment") ||
-    q.includes("eat") ||
-    q.includes("veg") ||
-    q.includes("non veg")
+    q.includes("eat")
   ) return "catering";
 
   return null;
 }
 
-/* COMMITTEES */
+/* COMMITTEE MAP */
 const map = {
   unsc: "UNSC",
   unhrc: "UNHRC",
@@ -264,14 +276,12 @@ async function bg() {
 function cateringAnswer(q) {
   q = q.toLowerCase();
 
-  if (q.includes("veg")) return "Vegetarian meals will be available.";
-  if (q.includes("non veg") || q.includes("non-veg")) return "Non-vegetarian meals will be available.";
+  if (q.includes("veg")) return "Vegetarian meals available.";
+  if (q.includes("non veg") || q.includes("non-veg")) return "Non-vegetarian meals available.";
   if (q.includes("lunch")) return "Lunch will be provided as per schedule.";
-  if (q.includes("snack")) return "Snacks and refreshments will be available during breaks.";
-  if (q.includes("timing")) return "Catering follows the conference schedule.";
-  if (q.includes("cost")) return "Catering is included unless stated otherwise.";
-
-  return "Catering includes meals and refreshments. Ask about veg, non-veg, lunch, or snacks.";
+  if (q.includes("snack")) return "Snacks will be served during breaks.";
+  if (q.includes("timing")) return "Catering follows conference schedule.";
+  return "Catering includes meals and refreshments.";
 }
 
 /* ELIGIBILITY */
@@ -283,7 +293,7 @@ function eligibility(q) {
 
   if (q.includes("delegation")) {
     const n = parseInt(q.match(/\d+/));
-    if (!n) return "Specify delegation size.";
+    if (!n) return "Specify size.";
     return n >= 15 ? "Eligible." : "Minimum 15 required.";
   }
 
@@ -293,11 +303,21 @@ function eligibility(q) {
 /* MAIN */
 async function handleQuery(q) {
 
+  const p = programmed(q);
+  if (p) return p;
+
   const g = general(q);
   if (g) return g;
 
   const i = intent(q);
-  if (!i) return "Sorry, didn't get you.";
+
+  if (!i) {
+    failCount++;
+    if (failCount >= 3) return CONTACT;
+    return "Sorry, didn't get you.";
+  }
+
+  failCount = 0;
 
   if (i === "agenda") {
     const c = detectCommittee(q);
