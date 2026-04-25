@@ -18,12 +18,11 @@ body {
   height: 100vh;
 }
 
-/* FULL SCREEN CHAT CONTAINER */
+/* CHAT CONTAINER */
 #mun-window {
   width: 420px;
   height: 85vh;
   background: rgba(17, 24, 39, 0.97);
-  backdrop-filter: blur(14px);
   border-radius: 18px;
   display: flex;
   flex-direction: column;
@@ -42,7 +41,6 @@ body {
   gap: 10px;
 }
 
-/* LOTTIE */
 #lottie-bot {
   width: 34px;
   height: 34px;
@@ -134,6 +132,7 @@ body {
     <button onclick="quickQuery('portfolios')">Portfolios</button>
     <button onclick="quickQuery('dates')">Dates</button>
     <button onclick="quickQuery('bg')">BGs</button>
+    <button onclick="quickQuery('catering')">Catering</button>
   </div>
 
   <div id="mun-input-area">
@@ -154,14 +153,13 @@ lottie.loadAnimation({
   path: 'https://assets2.lottiefiles.com/packages/lf20_tno6cg2w.json'
 });
 
-/* SHEET CONFIG */
+/* SHEETS */
 const SHEET_ID = "1dNDh4jRjCOUMbbf0ncK6Id5Hn52UMNwLC1VHCBnP4rY";
 const CONTACT = "Please contact the Chargé d’Affaires, Saanvi Kumar at 960691245.";
 
 const cache = {};
 const CACHE_TIME = 300000;
 
-/* FETCH SHEETS */
 async function getSheet(name) {
   try {
     const now = Date.now();
@@ -182,13 +180,10 @@ async function getSheet(name) {
 function general(q) {
   q = q.toLowerCase();
 
-  if (q.includes("contact") || q.includes("whatsapp")) return CONTACT;
-  if (q.includes("what can you do"))
-    return "Agendas, portfolios, dates, BGs, eligibility.";
-  if (q.match(/hi|hello|hey/))
-    return "Ask about MUN details.";
-  if (q.includes("committee"))
-    return "UNSC, UNHRC, UNODC, EU, LS, CCC, IPC.";
+  if (q.match(/contact|whatsapp|number/)) return CONTACT;
+  if (q.includes("what can you do")) return "Agendas, portfolios, dates, BGs, catering info.";
+  if (q.match(/hi|hello|hey/)) return "Ask about MUN details.";
+  if (q.includes("committee")) return "UNSC, UNHRC, UNODC, EU, LS, CCC, IPC.";
 
   return null;
 }
@@ -200,11 +195,11 @@ function intent(q) {
   if (q.includes("portfolio")) return "portfolio";
   if (q.includes("date")) return "date";
   if (q.includes("bg")) return "bg";
-  if (q.includes("eligible")) return "eligibility";
+  if (q.includes("catering")) return "catering";
   return null;
 }
 
-/* COMMITTEE MAP */
+/* COMMITTEES */
 const map = {
   unsc: "UNSC",
   unhrc: "UNHRC",
@@ -235,7 +230,7 @@ async function oneAgenda(c) {
   return r?.Agenda || "Not found.";
 }
 
-/* OTHER DATA */
+/* OTHER */
 async function matrix() {
   const d = await getSheet("Matrices");
   return d[0]?.Link || "#";
@@ -252,11 +247,24 @@ async function bg() {
   };
 }
 
+/* CATERING LOGIC */
+function cateringAnswer(q) {
+  q = q.toLowerCase();
+
+  if (q.includes("veg")) return "Vegetarian meals will be available across all days of the conference.";
+  if (q.includes("non veg") || q.includes("non-veg")) return "Non-vegetarian meals will be served where applicable.";
+  if (q.includes("lunch")) return "Lunch will be provided as per the schedule shared in the delegate kit.";
+  if (q.includes("snack")) return "Tea/coffee and snacks will be available during breaks.";
+  if (q.includes("timing")) return "Catering follows the conference schedule; exact timings will be announced in the schedule.";
+  if (q.includes("cost") || q.includes("fee")) return "Catering is included in the delegate fee unless otherwise specified.";
+  
+  return "Catering includes meals and refreshments during the conference. Please specify veg/non-veg, timing, or details.";
+}
+
 function eligibility(q) {
   q = q.toLowerCase();
 
-  if (q.includes("delegate") && q.match(/9|10/))
-    return "Eligible as Delegate.";
+  if (q.includes("delegate") && q.match(/9|10/)) return "Eligible as Delegate.";
 
   if (q.includes("delegation")) {
     const n = parseInt(q.match(/\d+/));
@@ -267,7 +275,9 @@ function eligibility(q) {
   return "Specify class or delegation size.";
 }
 
-/* CORE */
+/* MAIN */
+let fail = 0;
+
 async function handleQuery(q) {
 
   const g = general(q);
@@ -293,7 +303,9 @@ async function handleQuery(q) {
     return d.map(x => `${x.Event}: ${x.Date}`).join("<br>");
   }
 
-  if (i === "eligibility") return eligibility(q);
+  if (i === "catering") return cateringAnswer(q);
+
+  return eligibility(q);
 }
 
 /* UI */
