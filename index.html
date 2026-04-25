@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MUN Assistant</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
+
+<style>
+body {
+  margin: 0;
+  font-family: "Segoe UI", sans-serif;
+  background: #0b0f19;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+/* FULL SCREEN CHAT CONTAINER */
+#mun-window {
+  width: 420px;
+  height: 85vh;
+  background: rgba(17, 24, 39, 0.97);
+  backdrop-filter: blur(14px);
+  border-radius: 18px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+  overflow: hidden;
+}
+
+/* HEADER */
+#mun-header {
+  background: linear-gradient(135deg, #1e3a8a, #2563eb);
+  color: #fff;
+  padding: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* LOTTIE */
+#lottie-bot {
+  width: 34px;
+  height: 34px;
+}
+
+/* MESSAGES */
+#mun-messages {
+  flex: 1;
+  padding: 12px;
+  overflow-y: auto;
+}
+
+.msg {
+  margin: 6px 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  max-width: 85%;
+  font-size: 14px;
+}
+
+.user {
+  background: #2563eb;
+  color: #fff;
+  margin-left: auto;
+}
+
+.bot {
+  background: #1f2937;
+  color: #e5e7eb;
+}
+
+/* INPUT */
+#mun-input-area {
+  display: flex;
+  border-top: 1px solid #374151;
+}
+
+#mun-input {
+  flex: 1;
+  border: none;
+  padding: 12px;
+  background: #111827;
+  color: #e5e7eb;
+}
+
+#mun-input:focus { outline: none; }
+
+#mun-input-area button {
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  padding: 0 16px;
+  cursor: pointer;
+}
+
+/* QUICK BUTTONS */
+#mun-quick {
+  padding: 6px;
+  border-top: 1px solid #374151;
+}
+
+#mun-quick button {
+  margin: 2px;
+  padding: 6px 8px;
+  font-size: 11px;
+  border: none;
+  background: #111827;
+  color: #93c5fd;
+  border-radius: 6px;
+  cursor: pointer;
+}
+</style>
+
+</head>
+
+<body>
+
+<div id="mun-window">
+
+  <div id="mun-header">
+    <div id="lottie-bot"></div>
+    MUN Assistant
+  </div>
+
+  <div id="mun-messages"></div>
+
+  <div id="mun-quick">
+    <button onclick="quickQuery('agendas')">Agendas</button>
+    <button onclick="quickQuery('portfolios')">Portfolios</button>
+    <button onclick="quickQuery('dates')">Dates</button>
+    <button onclick="quickQuery('bg')">BGs</button>
+  </div>
+
+  <div id="mun-input-area">
+    <input id="mun-input" placeholder="Ask something..." />
+    <button onclick="sendMessage()">➤</button>
+  </div>
+
+</div>
+
+<script>
+
+/* LOTTIE */
+lottie.loadAnimation({
+  container: document.getElementById('lottie-bot'),
+  renderer: 'svg',
+  loop: true,
+  autoplay: true,
+  path: 'https://assets2.lottiefiles.com/packages/lf20_tno6cg2w.json'
+});
+
+/* SHEET CONFIG */
+const SHEET_ID = "1dNDh4jRjCOUMbbf0ncK6Id5Hn52UMNwLC1VHCBnP4rY";
+const CONTACT = "Please contact the Chargé d’Affaires, Saanvi Kumar at 960691245.";
+
+const cache = {};
+const CACHE_TIME = 300000;
+
+/* FETCH SHEETS */
+async function getSheet(name) {
+  try {
+    const now = Date.now();
+    if (cache[name] && now - cache[name].time < CACHE_TIME)
+      return cache[name].data;
+
+    const res = await fetch(`https://opensheet.elk.sh/${SHEET_ID}/${name}`);
+    const data = await res.json();
+
+    cache[name] = { data, time: now };
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
+
+/* GENERAL */
+function general(q) {
+  q = q.toLowerCase();
+
+  if (q.includes("contact") || q.includes("whatsapp")) return CONTACT;
+  if (q.includes("what can you do"))
+    return "Agendas, portfolios, dates, BGs, eligibility.";
+  if (q.match(/hi|hello|hey/))
+    return "Ask about MUN details.";
+  if (q.includes("committee"))
+    return "UNSC, UNHRC, UNODC, EU, LS, CCC, IPC.";
+
+  return null;
+}
+
+/* INTENT */
+function intent(q) {
+  q = q.toLowerCase();
+  if (q.includes("agenda")) return "agenda";
+  if (q.includes("portfolio")) return "portfolio";
+  if (q.includes("date")) return "date";
+  if (q.includes("bg")) return "bg";
+  if (q.includes("eligible")) return "eligibility";
+  return null;
+}
+
+/* COMMITTEE MAP */
+const map = {
+  unsc: "UNSC",
+  unhrc: "UNHRC",
+  unodc: "UNODC",
+  eu: "EU",
+  ls: "Lok Sabha",
+  ccc: "CCC",
+  ipc: "IPC"
+};
+
+function detectCommittee(q) {
+  q = q.toLowerCase();
+  for (let k in map) if (q.includes(k)) return map[k];
+  return null;
+}
+
+/* AGENDA */
+async function allAgendas() {
+  const d = await getSheet("Agendas");
+  return d.length
+    ? d.map(r => `<b>${r.Committee}</b>: ${r.Agenda}`).join("<br><br>")
+    : "No agendas.";
+}
+
+async function oneAgenda(c) {
+  const d = await getSheet("Agendas");
+  const r = d.find(x => x.Committee?.toLowerCase() === c.toLowerCase());
+  return r?.Agenda || "Not found.";
+}
+
+/* OTHER DATA */
+async function matrix() {
+  const d = await getSheet("Matrices");
+  return d[0]?.Link || "#";
+}
+
+async function bg() {
+  const d1 = await getSheet("Dates");
+  const d2 = await getSheet("Guides");
+
+  const row = d1.find(x => x.Event?.toLowerCase().includes("background"));
+  return {
+    date: row?.Date || "TBA",
+    link: d2[0]?.Link || "#"
+  };
+}
+
+function eligibility(q) {
+  q = q.toLowerCase();
+
+  if (q.includes("delegate") && q.match(/9|10/))
+    return "Eligible as Delegate.";
+
+  if (q.includes("delegation")) {
+    const n = parseInt(q.match(/\d+/));
+    if (!n) return "Specify size.";
+    return n >= 15 ? "Eligible." : "Minimum 15 required.";
+  }
+
+  return "Specify class or delegation size.";
+}
+
+/* CORE */
+async function handleQuery(q) {
+
+  const g = general(q);
+  if (g) return g;
+
+  const i = intent(q);
+  if (!i) return "Sorry, didn't get you.";
+
+  if (i === "agenda") {
+    const c = detectCommittee(q);
+    return c ? `<b>${c}</b>: ${await oneAgenda(c)}` : await allAgendas();
+  }
+
+  if (i === "portfolio") return `Matrix: <a href="${await matrix()}" target="_blank">Open</a>`;
+
+  if (i === "bg") {
+    const x = await bg();
+    return `BGs by ${x.date}. <a href="${x.link}" target="_blank">Open</a>`;
+  }
+
+  if (i === "date") {
+    const d = await getSheet("Dates");
+    return d.map(x => `${x.Event}: ${x.Date}`).join("<br>");
+  }
+
+  if (i === "eligibility") return eligibility(q);
+}
+
+/* UI */
+const messages = document.getElementById("mun-messages");
+
+function add(text, user=false) {
+  const d = document.createElement("div");
+  d.className = "msg " + (user ? "user" : "bot");
+  d.innerHTML = text;
+  messages.appendChild(d);
+  messages.scrollTop = messages.scrollHeight;
+}
+
+async function sendMessage() {
+  const input = document.getElementById("mun-input");
+  const q = input.value.trim();
+  if (!q) return;
+
+  add(q, true);
+  input.value = "";
+
+  add("...", false);
+  messages.lastChild.innerHTML = await handleQuery(q);
+}
+
+document.getElementById("mun-input").addEventListener("keydown", e => {
+  if (e.key === "Enter") sendMessage();
+});
+
+async function quickQuery(q) {
+  add(q, true);
+  add("...", false);
+  messages.lastChild.innerHTML = await handleQuery(q);
+}
+
+</script>
+
+</body>
+</html>
