@@ -314,7 +314,7 @@ async function handleQuery(q) {
   if (!i) {
     failCount++;
     if (failCount >= 3) return CONTACT;
-    return "Sorry, didn't get you.";
+    return "Sorry, didn't get you. Please contact the Chargé d’Affaires, Saanvi Kumar at 960691245.";
   }
 
   failCount = 0;
@@ -338,7 +338,7 @@ async function handleQuery(q) {
 
   if (i === "catering") return cateringAnswer(q);
 
-  return "Sorry, didn't get you.";
+  return "Sorry, didn't get you.Please contact the Chargé d’Affaires, Saanvi Kumar at 960691245.";
 }
 
 /* UI */
