@@ -18,7 +18,6 @@ body {
   height: 100vh;
 }
 
-/* CHAT WINDOW */
 #mun-window {
   width: 420px;
   height: 85vh;
@@ -30,7 +29,6 @@ body {
   overflow: hidden;
 }
 
-/* HEADER */
 #mun-header {
   background: linear-gradient(135deg, #1e3a8a, #2563eb);
   color: #fff;
@@ -46,7 +44,6 @@ body {
   height: 34px;
 }
 
-/* MESSAGES */
 #mun-messages {
   flex: 1;
   padding: 12px;
@@ -72,7 +69,6 @@ body {
   color: #e5e7eb;
 }
 
-/* INPUT */
 #mun-input-area {
   display: flex;
   border-top: 1px solid #374151;
@@ -96,7 +92,6 @@ body {
   cursor: pointer;
 }
 
-/* QUICK */
 #mun-quick {
   padding: 6px;
   border-top: 1px solid #374151;
@@ -153,7 +148,7 @@ lottie.loadAnimation({
   path: 'https://assets2.lottiefiles.com/packages/lf20_tno6cg2w.json'
 });
 
-/* SHEETS */
+/* CONFIG */
 const SHEET_ID = "1dNDh4jRjCOUMbbf0ncK6Id5Hn52UMNwLC1VHCBnP4rY";
 const CONTACT = "Please contact the Chargé d’Affaires, Saanvi Kumar at 960691245.";
 
@@ -178,9 +173,32 @@ async function getSheet(name) {
   }
 }
 
-/* FAQ MATCHING (NEW) */
-async function faqMatch(q) {
+/* DEFINITIONS (CRITICAL FIX) */
+function definitions(q) {
   q = q.toLowerCase();
+
+  if (q.includes("what is mun"))
+    return "Model United Nations (MUN) is a simulation of UN committees where delegates represent countries and debate global issues.";
+
+  if (q.includes("mun meaning"))
+    return "Model United Nations (MUN) is a simulation of UN committees.";
+
+  if (q.includes("what is committee"))
+    return "A committee is a simulated body where delegates discuss an agenda.";
+
+  if (q.includes("what is delegate"))
+    return "A delegate represents a country or stakeholder.";
+
+  if (q.includes("what is portfolio"))
+    return "A portfolio is the assigned country or role.";
+
+  return null;
+}
+
+/* FAQ MATCHING (IMPROVED) */
+async function faqMatch(q) {
+  q = q.toLowerCase().replace(/[^\w\s]/g, "");
+
   const data = await getSheet("FAQs");
 
   let best = null;
@@ -192,7 +210,16 @@ async function faqMatch(q) {
 
     for (let k of keys) {
       k = k.trim();
-      if (k && q.includes(k)) score++;
+      if (!k) continue;
+
+      const words = k.split(" ");
+      let match = 0;
+
+      for (let w of words) {
+        if (q.includes(w)) match++;
+      }
+
+      if (match > 0) score += match / words.length;
     }
 
     if (score > bestScore) {
@@ -201,7 +228,7 @@ async function faqMatch(q) {
     }
   }
 
-  if (best && bestScore > 0) return best.Answer;
+  if (best && bestScore > 0.5) return best.Answer;
   return null;
 }
 
@@ -316,7 +343,9 @@ function eligibility(q) {
 /* MAIN */
 async function handleQuery(q) {
 
-  /* FAQ FIRST */
+  const def = definitions(q);
+  if (def) return def;
+
   const faq = await faqMatch(q);
   if (faq) return faq;
 
