@@ -159,9 +159,9 @@ const CONTACT = "Please contact the Chargé d’Affaires, Saanvi Kumar at 960691
 
 const cache = {};
 const CACHE_TIME = 300000;
-
 let failCount = 0;
 
+/* FETCH */
 async function getSheet(name) {
   try {
     const now = Date.now();
@@ -178,16 +178,30 @@ async function getSheet(name) {
   }
 }
 
-/* PROGRAMMED FAQ RESPONSES */
-function programmed(q) {
+/* FAQ MATCHING (NEW) */
+async function faqMatch(q) {
   q = q.toLowerCase();
+  const data = await getSheet("FAQs");
 
-  if (q.includes("when is the mun")) return "The MUN will be conducted on the dates mentioned in the official schedule page of the website.";
-  if (q.includes("mun date")) return "Please refer to the Dates section for the official MUN schedule.";
-  if (q.includes("timing") && q.includes("mun")) return "The MUN timings will be shared in the delegate information booklet and schedule page.";
-  if (q.includes("venue")) return "The venue details are available in the event information section of the website.";
-  if (q.includes("registration")) return "Registration details are available on the registration page of the website.";
+  let best = null;
+  let bestScore = 0;
 
+  for (let row of data) {
+    const keys = (row.Keywords || "").toLowerCase().split(",");
+    let score = 0;
+
+    for (let k of keys) {
+      k = k.trim();
+      if (k && q.includes(k)) score++;
+    }
+
+    if (score > bestScore) {
+      bestScore = score;
+      best = row;
+    }
+  }
+
+  if (best && bestScore > 0) return best.Answer;
   return null;
 }
 
@@ -198,7 +212,6 @@ function general(q) {
   if (q.match(/contact|whatsapp|number/)) return CONTACT;
   if (q.includes("what can you do")) return "Agendas, portfolios, dates, BGs, catering info.";
   if (q.match(/hi|hello|hey/)) return "Ask about MUN details.";
-  if (q.includes("committee")) return "UNSC, UNHRC, UNODC, EU, LS, CCC, IPC.";
 
   return null;
 }
@@ -217,14 +230,15 @@ function intent(q) {
     q.includes("food") ||
     q.includes("meal") ||
     q.includes("lunch") ||
-    q.includes("snack") ||
-    q.includes("eat")
+    q.includes("snack")
   ) return "catering";
+
+  if (q.includes("eligible")) return "eligibility";
 
   return null;
 }
 
-/* COMMITTEE MAP */
+/* COMMITTEES */
 const map = {
   unsc: "UNSC",
   unhrc: "UNHRC",
@@ -277,10 +291,9 @@ function cateringAnswer(q) {
   q = q.toLowerCase();
 
   if (q.includes("veg")) return "Vegetarian meals available.";
-  if (q.includes("non veg") || q.includes("non-veg")) return "Non-vegetarian meals available.";
-  if (q.includes("lunch")) return "Lunch will be provided as per schedule.";
-  if (q.includes("snack")) return "Snacks will be served during breaks.";
-  if (q.includes("timing")) return "Catering follows conference schedule.";
+  if (q.includes("non veg")) return "Non-vegetarian meals available.";
+  if (q.includes("lunch")) return "Lunch will be provided.";
+  if (q.includes("snack")) return "Snacks during breaks.";
   return "Catering includes meals and refreshments.";
 }
 
@@ -303,8 +316,9 @@ function eligibility(q) {
 /* MAIN */
 async function handleQuery(q) {
 
-  const p = programmed(q);
-  if (p) return p;
+  /* FAQ FIRST */
+  const faq = await faqMatch(q);
+  if (faq) return faq;
 
   const g = general(q);
   if (g) return g;
@@ -314,7 +328,7 @@ async function handleQuery(q) {
   if (!i) {
     failCount++;
     if (failCount >= 3) return CONTACT;
-    return "Sorry, didn't get you. Please contact the Chargé d’Affaires, Saanvi Kumar at 960691245.";
+    return "Sorry, didn't get you.";
   }
 
   failCount = 0;
@@ -338,7 +352,9 @@ async function handleQuery(q) {
 
   if (i === "catering") return cateringAnswer(q);
 
-  return "Sorry, didn't get you.Please contact the Chargé d’Affaires, Saanvi Kumar at 960691245.";
+  if (i === "eligibility") return eligibility(q);
+
+  return "Sorry, didn't get you.";
 }
 
 /* UI */
