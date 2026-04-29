@@ -126,7 +126,7 @@ body {
     <button onclick="quickQuery('dates')">Dates</button>
     <button onclick="quickQuery('bg')">BGs</button>
     <button onclick="quickQuery('catering')">Catering</button>
-    <button onclick="quickQuery('faqs-display')">FAQs</button>
+    <button onclick="quickQuery('faqs')">FAQs</button>
   </div>
 
   <div id="mun-input-area">
@@ -171,7 +171,7 @@ async function getSheet(name) {
   }
 }
 
-/* DEFINITIONS */
+/* BASIC DEFINITIONS */
 function definitions(q) {
   q = q.toLowerCase();
 
@@ -248,7 +248,7 @@ function intent(q) {
   if (q.includes("bg") || q.includes("guide")) return "bg";
   if (q.includes("catering") || q.includes("food") || q.includes("meal") || q.includes("lunch")) return "catering";
   if (q.includes("eligible")) return "eligibility";
-  if (q.includes("faq")) return "faqs-display";
+  if (q.includes("faq")) return "faqs";
 
   return null;
 }
@@ -332,17 +332,19 @@ function eligibility(q) {
   return "Specify class or delegation size.";
 }
 
-/* FAQs DISPLAY */
+/* FAQs DISPLAY (FIXED SAFE VERSION) */
 async function faqsDisplay() {
   const d = await getSheet("FAQs-Display");
 
   if (!d.length) return "No FAQs available.";
 
   return d.map(r => {
-    const a = r.A || "";
-    const b = r.B || "";
-    const c = r.C || "";
-    const dcol = r.D || "";
+    const values = Object.values(r);
+
+    const a = values[0] || "";
+    const b = values[1] || "";
+    const c = values[2] || "";
+    const dcol = values[3] || "";
 
     return `
 <b>${a}</b><br>
@@ -401,7 +403,7 @@ async function handleQuery(q) {
 
   if (i === "eligibility") return eligibility(q);
 
-  if (i === "faqs-display") return faqsDisplay();
+  if (i === "faqs") return faqsDisplay();
 
   return "Sorry, didn't get you.";
 }
@@ -425,8 +427,12 @@ async function sendMessage() {
   add(q, true);
   input.value = "";
 
-  add("...", false);
-  messages.lastChild.innerHTML = await handleQuery(q);
+  const loading = document.createElement("div");
+  loading.className = "msg bot";
+  loading.innerHTML = "...";
+  messages.appendChild(loading);
+
+  loading.innerHTML = await handleQuery(q);
 }
 
 document.getElementById("mun-input").addEventListener("keydown", e => {
@@ -435,8 +441,13 @@ document.getElementById("mun-input").addEventListener("keydown", e => {
 
 async function quickQuery(q) {
   add(q, true);
-  add("...", false);
-  messages.lastChild.innerHTML = await handleQuery(q);
+
+  const loading = document.createElement("div");
+  loading.className = "msg bot";
+  loading.innerHTML = "...";
+  messages.appendChild(loading);
+
+  loading.innerHTML = await handleQuery(q);
 }
 
 </script>
