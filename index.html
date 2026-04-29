@@ -122,7 +122,7 @@ body {
 
   <div id="mun-quick">
     <button onclick="quickQuery('agendas')">Agendas</button>
-    <button onclick="quickQuery('portfolios')">Committee Matrix</button>
+    <button onclick="quickQuery('portfolios')">Portfolios</button>
     <button onclick="quickQuery('dates')">Dates</button>
     <button onclick="quickQuery('bg')">BGs</button>
     <button onclick="quickQuery('catering')">Catering</button>
@@ -171,7 +171,7 @@ async function getSheet(name) {
   }
 }
 
-/* BASIC DEFINITIONS */
+/* DEFINITIONS */
 function definitions(q) {
   q = q.toLowerCase();
 
@@ -243,7 +243,7 @@ function intent(q) {
   q = q.toLowerCase();
 
   if (q.includes("agenda")) return "agenda";
-  if (q.includes("portfolio") || q.includes("matrix")) return "portfolio";
+  if (q.includes("portfolio") || q.includes("portfolios") || q.includes("matrix") || q.includes("matrices")) return "portfolio";
   if (q.includes("date")) return "date";
   if (q.includes("bg") || q.includes("guide")) return "bg";
   if (q.includes("catering") || q.includes("food") || q.includes("meal") || q.includes("lunch")) return "catering";
@@ -287,7 +287,11 @@ async function allAgendas() {
 /* MATRIX */
 async function matrix() {
   const d = await getSheet("Matrices");
-  return d?.[0]?.Link || "";
+
+  if (!d || !d.length) return "";
+
+  const row = d[0];
+  return (row.Link || row.link || "").trim();
 }
 
 /* BG */
@@ -340,6 +344,7 @@ async function faqsDisplay() {
 
   return d.map(r => {
     const v = Object.values(r);
+
     const a = v[0] || "";
     const b = v[1] || "";
     const c = v[2] || "";
@@ -386,7 +391,10 @@ async function handleQuery(q) {
 
   if (i === "portfolio") {
     const link = await matrix();
-    return link ? `Committee Matrix: <br><a href="${link}" target="_blank">${link}</a>` : "Matrix not available.";
+
+    if (!link) return "Committee matrix not available.";
+
+    return `<a href="${link}" target="_blank">${link}</a>`;
   }
 
   if (i === "bg") {
