@@ -126,6 +126,7 @@ body {
     <button onclick="quickQuery('dates')">Dates</button>
     <button onclick="quickQuery('bg')">BGs</button>
     <button onclick="quickQuery('catering')">Catering</button>
+    <button onclick="quickQuery('faqs-display')">FAQs</button>
   </div>
 
   <div id="mun-input-area">
@@ -175,21 +176,21 @@ function definitions(q) {
   q = q.toLowerCase();
 
   if (q.includes("what is mun"))
-    return "Model United Nations (MUN) is a simulation of UN committees.";
+    return "Model United Nations is a simulation of UN committees.";
 
   if (q.includes("what is committee"))
-    return "A committee is a simulated body where delegates discuss an agenda.";
+    return "A committee is a simulated deliberative body.";
 
   if (q.includes("what is delegate"))
-    return "A delegate represents a country or stakeholder.";
+    return "A delegate represents a country or role.";
 
   if (q.includes("what is portfolio"))
-    return "A portfolio is the assigned country or role.";
+    return "A portfolio is the assigned role or country.";
 
   return null;
 }
 
-/* FAQ */
+/* FAQ MATCH */
 async function faqMatch(q) {
   q = q.toLowerCase().replace(/[^\w\s]/g, "");
   const data = await getSheet("FAQs");
@@ -231,7 +232,7 @@ function general(q) {
   q = q.toLowerCase();
 
   if (q.match(/contact|whatsapp|number/)) return CONTACT;
-  if (q.includes("what can you do")) return "Agendas, portfolios, dates, BGs, catering info.";
+  if (q.includes("what can you do")) return "Agendas, portfolios, dates, BGs, FAQs, catering info.";
   if (q.match(/hi|hello|hey/)) return "Ask about MUN details.";
 
   return null;
@@ -247,6 +248,7 @@ function intent(q) {
   if (q.includes("bg") || q.includes("guide")) return "bg";
   if (q.includes("catering") || q.includes("food") || q.includes("meal") || q.includes("lunch")) return "catering";
   if (q.includes("eligible")) return "eligibility";
+  if (q.includes("faq")) return "faqs-display";
 
   return null;
 }
@@ -330,6 +332,27 @@ function eligibility(q) {
   return "Specify class or delegation size.";
 }
 
+/* FAQs DISPLAY */
+async function faqsDisplay() {
+  const d = await getSheet("FAQs-Display");
+
+  if (!d.length) return "No FAQs available.";
+
+  return d.map(r => {
+    const a = r.A || "";
+    const b = r.B || "";
+    const c = r.C || "";
+    const dcol = r.D || "";
+
+    return `
+<b>${a}</b><br>
+${b}<br>
+${c ? c + "<br>" : ""}
+${dcol ? dcol : ""}
+`;
+  }).join("<br><br>");
+}
+
 /* MAIN */
 async function handleQuery(q) {
 
@@ -377,6 +400,8 @@ async function handleQuery(q) {
   if (i === "catering") return cateringAnswer(q);
 
   if (i === "eligibility") return eligibility(q);
+
+  if (i === "faqs-display") return faqsDisplay();
 
   return "Sorry, didn't get you.";
 }
