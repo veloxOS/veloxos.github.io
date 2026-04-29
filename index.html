@@ -171,7 +171,22 @@ async function getSheet(name) {
   }
 }
 
-/* BASIC DEFINITIONS */
+/* UNIVERSAL LINK EXTRACTOR */
+async function firstLink(sheetName) {
+  const d = await getSheet(sheetName);
+  if (!d || !d.length) return "";
+
+  const row = d[0];
+
+  return (
+    row.Link ||
+    row.link ||
+    Object.values(row).find(v => typeof v === "string" && v.startsWith("http")) ||
+    ""
+  ).trim();
+}
+
+/* DEFINITIONS */
 function definitions(q) {
   q = q.toLowerCase();
 
@@ -286,23 +301,20 @@ async function allAgendas() {
 
 /* MATRIX */
 async function matrix() {
-  const d = await getSheet("Matrices");
-  if (!d || !d.length) return "";
-
-  const row = d[0];
-  return (row.Link || row.link || "").trim();
+  return await firstLink("Matrices");
 }
 
 /* BG */
 async function bg() {
-  const d1 = await getSheet("Dates");
-  const d2 = await getSheet("Guides");
+  const d = await getSheet("Dates");
 
-  const row = d1.find(x => x.Event?.toLowerCase().includes("background"));
+  const row = d.find(x =>
+    (x.Event || "").toLowerCase().includes("background")
+  );
 
   return {
     date: row?.Date || "TBA",
-    link: d2?.[0]?.Link || "#"
+    link: await firstLink("Guides")
   };
 }
 
@@ -384,9 +396,7 @@ async function handleQuery(q) {
 
   if (i === "portfolio") {
     const link = await matrix();
-
     if (!link) return "Committee matrix not available.";
-
     return `Committee Matrix by link.<br><a href="${link}" target="_blank">Open</a>`;
   }
 
