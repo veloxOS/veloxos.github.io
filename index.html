@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -108,7 +107,6 @@ body {
   cursor: pointer;
 }
 </style>
-
 </head>
 
 <body>
@@ -139,7 +137,6 @@ body {
 
 <script>
 
-/* LOTTIE */
 lottie.loadAnimation({
   container: document.getElementById('lottie-bot'),
   renderer: 'svg',
@@ -148,13 +145,13 @@ lottie.loadAnimation({
   path: 'https://assets2.lottiefiles.com/packages/lf20_tno6cg2w.json'
 });
 
-/* CONFIG */
 const SHEET_ID = "1dNDh4jRjCOUMbbf0ncK6Id5Hn52UMNwLC1VHCBnP4rY";
 const CONTACT = "Please contact the Chargé d’Affaires, Saanvi Kumar at 9606940530 on WhatsApp.";
 
 const cache = {};
 const CACHE_TIME = 300000;
-let failCount = 0;
+
+let sorryCount = 0;
 
 /* FETCH */
 async function getSheet(name) {
@@ -173,15 +170,12 @@ async function getSheet(name) {
   }
 }
 
-/* DEFINITIONS (CRITICAL FIX) */
+/* DEFINITIONS */
 function definitions(q) {
   q = q.toLowerCase();
 
   if (q.includes("what is mun"))
     return "Model United Nations (MUN) is a simulation of UN committees where delegates represent countries and debate global issues.";
-
-  if (q.includes("mun meaning"))
-    return "Model United Nations (MUN) is a simulation of UN committees.";
 
   if (q.includes("what is committee"))
     return "A committee is a simulated body where delegates discuss an agenda.";
@@ -195,10 +189,9 @@ function definitions(q) {
   return null;
 }
 
-/* FAQ MATCHING (IMPROVED) */
+/* FAQ */
 async function faqMatch(q) {
   q = q.toLowerCase().replace(/[^\w\s]/g, "");
-
   const data = await getSheet("FAQs");
 
   let best = null;
@@ -206,6 +199,7 @@ async function faqMatch(q) {
 
   for (let row of data) {
     const keys = (row.Keywords || "").toLowerCase().split(",");
+
     let score = 0;
 
     for (let k of keys) {
@@ -251,15 +245,7 @@ function intent(q) {
   if (q.includes("portfolio")) return "portfolio";
   if (q.includes("date")) return "date";
   if (q.includes("bg") || q.includes("guide")) return "bg";
-
-  if (
-    q.includes("catering") ||
-    q.includes("food") ||
-    q.includes("meal") ||
-    q.includes("lunch") ||
-    q.includes("snack")
-  ) return "catering";
-
+  if (q.includes("catering") || q.includes("food") || q.includes("meal") || q.includes("lunch")) return "catering";
   if (q.includes("eligible")) return "eligibility";
 
   return null;
@@ -283,6 +269,12 @@ function detectCommittee(q) {
 }
 
 /* AGENDA */
+async function oneAgenda(c) {
+  const d = await getSheet("Agendas");
+  const r = d.find(x => x.Committee?.toLowerCase() === c.toLowerCase());
+  return r?.Agenda || "Not found.";
+}
+
 async function allAgendas() {
   const d = await getSheet("Agendas");
   return d.length
@@ -290,23 +282,19 @@ async function allAgendas() {
     : "No agendas.";
 }
 
-async function oneAgenda(c) {
-  const d = await getSheet("Agendas");
-  const r = d.find(x => x.Committee?.toLowerCase() === c.toLowerCase());
-  return r?.Agenda || "Not found.";
-}
-
-/* OTHER */
+/* MATRIX */
 async function matrix() {
   const d = await getSheet("Matrices");
   return d[0]?.Link || "#";
 }
 
+/* BG */
 async function bg() {
   const d1 = await getSheet("Dates");
   const d2 = await getSheet("Guides");
 
   const row = d1.find(x => x.Event?.toLowerCase().includes("background"));
+
   return {
     date: row?.Date || "TBA",
     link: d2[0]?.Link || "#"
@@ -319,8 +307,9 @@ function cateringAnswer(q) {
 
   if (q.includes("veg")) return "Vegetarian meals available.";
   if (q.includes("non veg")) return "Non-vegetarian meals available.";
-  if (q.includes("lunch")) return "Lunch will be provided.";
+  if (q.includes("lunch")) return "Lunch provided.";
   if (q.includes("snack")) return "Snacks during breaks.";
+
   return "Catering includes meals and refreshments.";
 }
 
@@ -331,8 +320,9 @@ function eligibility(q) {
   if (q.includes("delegate") && q.match(/9|10/))
     return "Eligible as Delegate.";
 
+  const n = parseInt(q.match(/\d+/));
+
   if (q.includes("delegation")) {
-    const n = parseInt(q.match(/\d+/));
     if (!n) return "Specify size.";
     return n >= 15 ? "Eligible." : "Minimum 15 required.";
   }
@@ -355,12 +345,17 @@ async function handleQuery(q) {
   const i = intent(q);
 
   if (!i) {
-    failCount++;
-    if (failCount >= 3) return CONTACT;
+    sorryCount++;
+
+    if (sorryCount >= 3) {
+      sorryCount = 0;
+      return CONTACT;
+    }
+
     return "Sorry, didn't get you.";
   }
 
-  failCount = 0;
+  sorryCount = 0;
 
   if (i === "agenda") {
     const c = detectCommittee(q);
