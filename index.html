@@ -122,7 +122,7 @@ body {
 
   <div id="mun-quick">
     <button onclick="quickQuery('agendas')">Agendas</button>
-    <button onclick="quickQuery('portfolios')">Portfolios</button>
+    <button onclick="quickQuery('portfolios')">Committee Matrix</button>
     <button onclick="quickQuery('dates')">Dates</button>
     <button onclick="quickQuery('bg')">BGs</button>
     <button onclick="quickQuery('catering')">Catering</button>
@@ -243,7 +243,7 @@ function intent(q) {
   q = q.toLowerCase();
 
   if (q.includes("agenda")) return "agenda";
-  if (q.includes("portfolio")) return "portfolio";
+  if (q.includes("portfolio") || q.includes("matrix")) return "portfolio";
   if (q.includes("date")) return "date";
   if (q.includes("bg") || q.includes("guide")) return "bg";
   if (q.includes("catering") || q.includes("food") || q.includes("meal") || q.includes("lunch")) return "catering";
@@ -287,7 +287,7 @@ async function allAgendas() {
 /* MATRIX */
 async function matrix() {
   const d = await getSheet("Matrices");
-  return d[0]?.Link || "#";
+  return d?.[0]?.Link || "";
 }
 
 /* BG */
@@ -299,7 +299,7 @@ async function bg() {
 
   return {
     date: row?.Date || "TBA",
-    link: d2[0]?.Link || "#"
+    link: d2?.[0]?.Link || "#"
   };
 }
 
@@ -332,19 +332,18 @@ function eligibility(q) {
   return "Specify class or delegation size.";
 }
 
-/* FAQs DISPLAY (FIXED SAFE VERSION) */
+/* FAQs DISPLAY */
 async function faqsDisplay() {
   const d = await getSheet("FAQs-Display");
 
   if (!d.length) return "No FAQs available.";
 
   return d.map(r => {
-    const values = Object.values(r);
-
-    const a = values[0] || "";
-    const b = values[1] || "";
-    const c = values[2] || "";
-    const dcol = values[3] || "";
+    const v = Object.values(r);
+    const a = v[0] || "";
+    const b = v[1] || "";
+    const c = v[2] || "";
+    const dcol = v[3] || "";
 
     return `
 <b>${a}</b><br>
@@ -371,12 +370,10 @@ async function handleQuery(q) {
 
   if (!i) {
     sorryCount++;
-
     if (sorryCount >= 3) {
       sorryCount = 0;
       return CONTACT;
     }
-
     return "Sorry, didn't get you.";
   }
 
@@ -387,7 +384,10 @@ async function handleQuery(q) {
     return c ? `<b>${c}</b>: ${await oneAgenda(c)}` : await allAgendas();
   }
 
-  if (i === "portfolio") return `Matrix: <a href="${await matrix()}" target="_blank">Open</a>`;
+  if (i === "portfolio") {
+    const link = await matrix();
+    return link ? `Committee Matrix: <br><a href="${link}" target="_blank">${link}</a>` : "Matrix not available.";
+  }
 
   if (i === "bg") {
     const x = await bg();
@@ -425,7 +425,6 @@ async function sendMessage() {
   if (!q) return;
 
   add(q, true);
-  input.value = "";
 
   const loading = document.createElement("div");
   loading.className = "msg bot";
@@ -433,6 +432,7 @@ async function sendMessage() {
   messages.appendChild(loading);
 
   loading.innerHTML = await handleQuery(q);
+  input.value = "";
 }
 
 document.getElementById("mun-input").addEventListener("keydown", e => {
