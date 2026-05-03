@@ -55,6 +55,7 @@ body {
   border-radius: 12px;
   max-width: 85%;
   font-size: 14px;
+  line-height: 1.5;
 }
 
 .user {
@@ -106,13 +107,18 @@ body {
   border-radius: 6px;
   cursor: pointer;
 }
+
+hr.bot-sep {
+  border: 0;
+  border-top: 1px solid #374151;
+  margin: 10px 0;
+}
 </style>
 </head>
 
 <body>
 
 <div id="mun-window">
-
   <div id="mun-header">
     <div id="lottie-bot"></div>
     MUN Assistant
@@ -133,11 +139,9 @@ body {
     <input id="mun-input" placeholder="Ask something..." />
     <button onclick="sendMessage()">➤</button>
   </div>
-
 </div>
 
 <script>
-
 lottie.loadAnimation({
   container: document.getElementById('lottie-bot'),
   renderer: 'svg',
@@ -151,275 +155,142 @@ const CONTACT = "Please contact the Chargé d’Affaires, Saanvi Kumar at 960694
 
 const cache = {};
 const CACHE_TIME = 300000;
-
 let sorryCount = 0;
 
-/* FETCH */
+/* FETCHING DATA */
 async function getSheet(name) {
   try {
     const now = Date.now();
-    if (cache[name] && now - cache[name].time < CACHE_TIME)
-      return cache[name].data;
-
+    if (cache[name] && now - cache[name].time < CACHE_TIME) return cache[name].data;
     const res = await fetch(`https://opensheet.elk.sh/${SHEET_ID}/${name}`);
     const data = await res.json();
-
     cache[name] = { data, time: now };
     return Array.isArray(data) ? data : [];
-  } catch {
-    return [];
-  }
+  } catch { return []; }
 }
 
-/* UNIVERSAL LINK EXTRACTOR */
 async function firstLink(sheetName) {
   const d = await getSheet(sheetName);
   if (!d || !d.length) return "";
-
   const row = d[0];
-
-  return (
-    row.Link ||
-    row.link ||
-    Object.values(row).find(v => typeof v === "string" && v.startsWith("http")) ||
-    ""
-  ).trim();
+  return (row.Link || row.link || Object.values(row).find(v => typeof v === "string" && v.startsWith("http")) || "").trim();
 }
 
-/* DEFINITIONS */
+/* INTENT DETECTION (MULTIPLE) */
+function detectIntents(q) {
+  q = q.toLowerCase();
+  let intents = [];
+  if (q.includes("agenda")) intents.push("agenda");
+  if (q.match(/portfolio|matrix|matrices/)) intents.push("portfolio");
+  if (q.includes("date")) intents.push("date");
+  if (q.match(/bg|guide/)) intents.push("bg");
+  if (q.match(/catering|food|meal|lunch|snack/)) intents.push("catering");
+  if (q.includes("eligible")) intents.push("eligibility");
+  if (q.includes("faq")) intents.push("faqs");
+  return intents;
+}
+
+/* SUB-HANDLERS */
 function definitions(q) {
   q = q.toLowerCase();
-
-  if (q.includes("what is mun"))
-    return "Model United Nations is a simulation of UN committees.";
-
-  if (q.includes("what is committee"))
-    return "A committee is a simulated deliberative body.";
-
-  if (q.includes("what is delegate"))
-    return "A delegate represents a country or role.";
-
-  if (q.includes("what is portfolio"))
-    return "A portfolio is the assigned role or country.";
-
+  if (q.includes("what is mun")) return "Model United Nations is a simulation of UN committees.";
+  if (q.includes("use of mun") || q.includes("why mun")) return "MUN helps develop leadership, public speaking, and negotiation skills.";
   return null;
 }
 
-/* FAQ */
 async function faqMatch(q) {
   q = q.toLowerCase().replace(/[^\w\s]/g, "");
   const data = await getSheet("FAQs");
-
-  let best = null;
-  let bestScore = 0;
-
+  let best = null; let bestScore = 0;
   for (let row of data) {
     const keys = (row.Keywords || "").toLowerCase().split(",");
-
     let score = 0;
-
     for (let k of keys) {
-      k = k.trim();
-      if (!k) continue;
-
+      k = k.trim(); if (!k) continue;
       const words = k.split(" ");
       let match = 0;
-
-      for (let w of words) {
-        if (q.includes(w)) match++;
-      }
-
+      for (let w of words) { if (q.includes(w)) match++; }
       if (match > 0) score += match / words.length;
     }
-
-    if (score > bestScore) {
-      bestScore = score;
-      best = row;
-    }
+    if (score > bestScore) { bestScore = score; best = row; }
   }
-
-  if (best && bestScore > 0.5) return best.Answer;
-  return null;
+  return (best && bestScore > 0.5) ? best.Answer : null;
 }
 
-/* GENERAL */
-function general(q) {
-  q = q.toLowerCase();
-
-  if (q.match(/contact|whatsapp|number/)) return CONTACT;
-  if (q.includes("what can you do")) return "Agendas, portfolios, dates, BGs, FAQs, catering info.";
-  if (q.match(/hi|hello|hey/)) return "Ask about MUN details.";
-
-  return null;
-}
-
-/* INTENT */
-function intent(q) {
-  q = q.toLowerCase();
-
-  if (q.includes("agenda")) return "agenda";
-  if (q.includes("portfolio") || q.includes("portfolios") || q.includes("matrix") || q.includes("matrices")) return "portfolio";
-  if (q.includes("date")) return "date";
-  if (q.includes("bg") || q.includes("guide")) return "bg";
-  if (q.includes("catering") || q.includes("food") || q.includes("meal") || q.includes("lunch")) return "catering";
-  if (q.includes("eligible")) return "eligibility";
-  if (q.includes("faq")) return "faqs";
-
-  return null;
-}
-
-/* COMMITTEES */
-const map = {
-  unsc: "UNSC",
-  unhrc: "UNHRC",
-  unodc: "UNODC",
-  eu: "EU",
-  ls: "Lok Sabha",
-  ccc: "CCC",
-  ipc: "IPC"
-};
-
+const committeeMap = { unsc: "UNSC", unhrc: "UNHRC", unodc: "UNODC", eu: "EU", ls: "Lok Sabha", ccc: "CCC", ipc: "IPC" };
 function detectCommittee(q) {
   q = q.toLowerCase();
-  for (let k in map) if (q.includes(k)) return map[k];
+  for (let k in committeeMap) if (q.includes(k)) return committeeMap[k];
   return null;
 }
 
-/* AGENDA */
-async function oneAgenda(c) {
-  const d = await getSheet("Agendas");
-  const r = d.find(x => x.Committee?.toLowerCase() === c.toLowerCase());
-  return r?.Agenda || "Not found.";
-}
-
-async function allAgendas() {
-  const d = await getSheet("Agendas");
-  return d.length
-    ? d.map(r => `<b>${r.Committee}</b>: ${r.Agenda}`).join("<br><br>")
-    : "No agendas.";
-}
-
-/* MATRIX */
-async function matrix() {
-  return await firstLink("Matrices");
-}
-
-/* BG */
-async function bg() {
-  const d = await getSheet("Dates");
-
-  const row = d.find(x =>
-    (x.Event || "").toLowerCase().includes("background")
-  );
-
-  return {
-    date: row?.Date || "TBA",
-    link: await firstLink("Guides")
-  };
-}
-
-/* CATERING */
-function cateringAnswer(q) {
-  q = q.toLowerCase();
-
-  if (q.includes("veg")) return "Vegetarian meals available.";
-  if (q.includes("non veg")) return "Non-vegetarian meals available.";
-  if (q.includes("lunch")) return "Lunch provided.";
-  if (q.includes("snack")) return "Snacks during breaks.";
-
-  return "Catering includes meals and refreshments.";
-}
-
-/* ELIGIBILITY */
-function eligibility(q) {
-  q = q.toLowerCase();
-
-  if (q.includes("delegate") && q.match(/9|10/))
-    return "Eligible as Delegate.";
-
-  const n = parseInt(q.match(/\d+/));
-
-  if (q.includes("delegation")) {
-    if (!n) return "Specify size.";
-    return n >= 15 ? "Eligible." : "Minimum 15 required.";
-  }
-
-  return "Specify class or delegation size.";
-}
-
-/* FAQs DISPLAY */
-async function faqsDisplay() {
-  const d = await getSheet("FAQs-Display");
-  if (!d.length) return "No FAQs available.";
-
-  return d.map(r => {
-    const v = Object.values(r);
-
-    const a = v[0] || "";
-    const b = v[1] || "";
-    const c = v[2] || "";
-    const dcol = v[3] || "";
-
-    return `<b>${a}</b><br>${b}<br>${c ? c + "<br>" : ""}${dcol ? dcol : ""}`;
-  }).join("<br><br>");
-}
-
-/* MAIN */
+/* MAIN HANDLER - MULTI QUESTION SUPPORT */
 async function handleQuery(q) {
+  let results = [];
+  const queryLower = q.toLowerCase();
 
-  const def = definitions(q);
-  if (def) return def;
+  // 1. Check Hardcoded Definitions/Greetings
+  const def = definitions(queryLower);
+  if (def) results.push(def);
+  
+  if (queryLower.match(/hi|hello|hey/)) results.push("Hello! How can I help you with the MUN today?");
 
-  const faq = await faqMatch(q);
-  if (faq) return faq;
-
-  const g = general(q);
-  if (g) return g;
-
-  const i = intent(q);
-
-  if (!i) {
-    sorryCount++;
-    if (sorryCount >= 3) {
-      sorryCount = 0;
-      return CONTACT;
+  // 2. Detect and process specific intents
+  const intents = detectIntents(queryLower);
+  for (let i of intents) {
+    if (i === "agenda") {
+      const c = detectCommittee(queryLower);
+      if (c) {
+        const d = await getSheet("Agendas");
+        const r = d.find(x => x.Committee?.toLowerCase() === c.toLowerCase());
+        results.push(`<b>${c}</b>: ${r?.Agenda || "Not found."}`);
+      } else {
+        const d = await getSheet("Agendas");
+        results.push(d.length ? d.map(r => `<b>${r.Committee}</b>: ${r.Agenda}`).join("<br><br>") : "No agendas.");
+      }
     }
-    return "Sorry, didn't get you.";
+    if (i === "portfolio") {
+      const link = await firstLink("Matrices");
+      results.push(link ? `Committee Matrix: <a href="${link}" target="_blank">Open here</a>` : "Matrix not available.");
+    }
+    if (i === "bg") {
+      const d = await getSheet("Dates");
+      const row = d.find(x => (x.Event || "").toLowerCase().includes("background"));
+      const link = await firstLink("Guides");
+      results.push(`BGs will be out by ${row?.Date || "TBA"}. <a href="${link}" target="_blank">View Guides</a>`);
+    }
+    if (i === "date") {
+      const d = await getSheet("Dates");
+      results.push(d.map(x => `${x.Event}: ${x.Date}`).join("<br>"));
+    }
+    if (i === "catering") {
+      results.push("Catering includes vegetarian and non-vegetarian meals, along with snacks during breaks.");
+    }
+    if (i === "faqs") {
+      const d = await getSheet("FAQs-Display");
+      if (d.length) results.push(d.map(r => Object.values(r).filter(v => v).join("<br>")).join("<br><br>"));
+    }
   }
 
-  sorryCount = 0;
-
-  if (i === "agenda") {
-    const c = detectCommittee(q);
-    return c ? `<b>${c}</b>: ${await oneAgenda(c)}` : await allAgendas();
+  // 3. Fallback to FAQ search if no intents were triggered
+  if (results.length === 0) {
+    const faq = await faqMatch(queryLower);
+    if (faq) results.push(faq);
   }
 
-  if (i === "portfolio") {
-    const link = await matrix();
-    if (!link) return "Committee matrix not available.";
-    return `Committee Matrix by link.<br><a href="${link}" target="_blank">Open</a>`;
+  // 4. Return formatted results
+  if (results.length > 0) {
+    sorryCount = 0;
+    // Join multiple answers with a line separator
+    return results.join("<hr class='bot-sep'>");
   }
 
-  if (i === "bg") {
-    const x = await bg();
-    return `BGs by ${x.date}. <a href="${x.link}" target="_blank">Open</a>`;
-  }
-
-  if (i === "date") {
-    const d = await getSheet("Dates");
-    return d.map(x => `${x.Event}: ${x.Date}`).join("<br>");
-  }
-
-  if (i === "catering") return cateringAnswer(q);
-
-  if (i === "eligibility") return eligibility(q);
-
-  if (i === "faqs") return faqsDisplay();
-
-  return "Sorry, didn't get you.";
+  sorryCount++;
+  if (sorryCount >= 3) { sorryCount = 0; return CONTACT; }
+  return "I'm not sure about that. You can ask about agendas, dates, BGs, or catering!";
 }
 
-/* UI */
+/* UI LOGIC */
 const messages = document.getElementById("mun-messages");
 
 function add(text, user=false) {
@@ -428,6 +299,7 @@ function add(text, user=false) {
   d.innerHTML = text;
   messages.appendChild(d);
   messages.scrollTop = messages.scrollHeight;
+  return d;
 }
 
 async function sendMessage() {
@@ -436,14 +308,10 @@ async function sendMessage() {
   if (!q) return;
 
   add(q, true);
-
-  const loading = document.createElement("div");
-  loading.className = "msg bot";
-  loading.innerHTML = "...";
-  messages.appendChild(loading);
-
-  loading.innerHTML = await handleQuery(q);
   input.value = "";
+
+  const loading = add("...");
+  loading.innerHTML = await handleQuery(q);
 }
 
 document.getElementById("mun-input").addEventListener("keydown", e => {
@@ -452,15 +320,9 @@ document.getElementById("mun-input").addEventListener("keydown", e => {
 
 async function quickQuery(q) {
   add(q, true);
-
-  const loading = document.createElement("div");
-  loading.className = "msg bot";
-  loading.innerHTML = "...";
-  messages.appendChild(loading);
-
+  const loading = add("...");
   loading.innerHTML = await handleQuery(q);
 }
-
 </script>
 
 </body>
