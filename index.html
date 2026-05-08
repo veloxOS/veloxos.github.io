@@ -264,7 +264,7 @@ async function handleQuery(q) {
       results.push(d.map(x => `${x.Event}: ${x.Date}`).join("<br>"));
     }
     if (i === "catering") {
-      results.push("Catering includes vegetarian and non-vegetarian meals, along with snacks during breaks.");
+      results.push("Vegetarian Lunch shall be provided");
     }
     if (i === "faqs") {
       const d = await getSheet("FAQs-Display");
@@ -287,7 +287,7 @@ async function handleQuery(q) {
 
   sorryCount++;
   if (sorryCount >= 3) { sorryCount = 0; return CONTACT; }
-  return "I'm not sure about that. You can ask about agendas, dates, BGs, or catering!";
+  return "I'm not sure about that. You can ask about agendas, dates, BGs, catering and other MUN related topics!";
 }
 
 /* UI LOGIC */
