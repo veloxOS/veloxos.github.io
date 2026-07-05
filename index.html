@@ -132,7 +132,6 @@ hr.bot-sep {
     <button onclick="quickQuery('dates')">Dates</button>
     <button onclick="quickQuery('bg')">BGs</button>
     <button onclick="quickQuery('catering')">Catering</button>
-    <button onclick="quickQuery('faqs')">FAQs</button>
   </div>
 
   <div id="mun-input-area">
@@ -186,7 +185,6 @@ function detectIntents(q) {
   if (q.match(/bg|guide/)) intents.push("bg");
   if (q.match(/catering|food|meal|lunch|snack/)) intents.push("catering");
   if (q.includes("eligible")) intents.push("eligibility");
-  if (q.includes("faq")) intents.push("faqs");
   return intents;
 }
 
@@ -265,10 +263,6 @@ async function handleQuery(q) {
     }
     if (i === "catering") {
       results.push("Vegetarian Lunch shall be provided");
-    }
-    if (i === "faqs") {
-      const d = await getSheet("FAQs-Display");
-      if (d.length) results.push(d.map(r => Object.values(r).filter(v => v).join("<br>")).join("<br><br>"));
     }
   }
 
