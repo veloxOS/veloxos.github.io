@@ -265,7 +265,6 @@ async function handleQuery(q) {
       results.push("Vegetarian Lunch shall be provided");
     }
   }
-
   // 3. Fallback to FAQ search if no intents were triggered
   if (results.length === 0) {
     const faq = await faqMatch(queryLower);
