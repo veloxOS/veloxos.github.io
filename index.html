@@ -249,7 +249,7 @@ async function handleQuery(q) {
     }
     if (i === "portfolio") {
       const link = await firstLink("Matrices");
-      results.push(link ? `Committee Matrix: <a href="${link}" target="_blank">Open here</a>` : "Matrix not available.");
+      results.push(link ? `Portfolio Matrix: <a href="${link}" target="_blank">Open here</a>` : "Matrix not available.");
     }
     if (i === "bg") {
       const d = await getSheet("Dates");
