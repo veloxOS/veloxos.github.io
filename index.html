@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <title>CSMUN Assistant</title>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
 
 <style>
 body {
@@ -37,11 +38,9 @@ body {
   gap: 10px;
 }
 
-#logo {
+#lottie-bot {
   width: 34px;
   height: 34px;
-  object-fit: contain;
-  flex-shrink: 0;
 }
 
 #mun-messages {
@@ -121,9 +120,8 @@ hr.bot-sep {
 
 <div id="mun-window">
   <div id="mun-header">
-  <img id="logo" src="image.png" alt="CSMUN Logo">
-  <span>CSMUN Assistant</span>
-</div>
+    <div id="lottie-bot"></div>
+    CSMUN Assistant
   </div>
 
   <div id="mun-messages"></div>
@@ -143,10 +141,16 @@ hr.bot-sep {
 </div>
 
 <script>
-
+lottie.loadAnimation({
+  container: document.getElementById('lottie-bot'),
+  renderer: 'svg',
+  loop: true,
+  autoplay: true,
+  path: 'https://assets2.lottiefiles.com/packages/lf20_tno6cg2w.json'
+});
 
 const SHEET_ID = "1dNDh4jRjCOUMbbf0ncK6Id5Hn52UMNwLC1VHCBnP4rY";
-const CONTACT = "Please contact the Chargé d’Affaires, Saanvi Kumar at 9606940530 on WhatsApp or Praveen Karthik at 91487 84721";
+const CONTACT = "Please contact the Chargé d’Affaires, Saanvi Kumar at 9606940530 on WhatsApp.";
 
 const cache = {};
 const CACHE_TIME = 300000;
